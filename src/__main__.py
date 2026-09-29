@@ -83,15 +83,17 @@ def py_code_spliter(data, size):
     return list_chunkholder
 
 
-def bm25_tester():
+def bm25_tester(chunks):
     corpus = [
     "Python is a popular programming language for data science",
     "BM25 is a classic keyword ranking function used by search engines",
-    "Retrieval-augmented generation uses lexical search like BM25 and dense embeddings",
+    "-augmented generation uses lexical search like BM25 and dense embeddings",
     "The weather is quite nice and sunny today"
     ]
-    bm = bm25s.tokenize(corpus, lowercase=True)
-    print(type(bm))
+    tokens = bm25s.tokenize(chunks)
+    retriver = bm25s.BM25()
+    retriver.index(tokens)
+    print(retriver)
 
 # def chunk_manger(data):
 #     for key, value in data.items():
@@ -105,10 +107,18 @@ if __name__ == "__main__":
     for key, value in data.items():
         for tp in value:
             if key == "md_data":
-                sources.append(md_text_spliter(tp, 2000))
+                sources.extend(md_text_spliter(tp, 2000))
             elif key == "py_data":
-                sources.append(py_code_spliter(tp, 2000))
-    bm25_tester()
+                sources.extend(py_code_spliter(tp, 2000))
+    # print(len(sources))
+    # print(len(sources[0]))
+    # chunks = []
+    # for source in sources:
+    #     chunks.extend(source.text)
+    chunks = []
+    for s in sources:
+        chunks.extend(s.text)
+    bm25_tester(chunks)
     # print(sources[0])
     # print(sources[0][0].text[:300]) 
     # print(sources[0][0].first_character_index)
