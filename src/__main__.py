@@ -15,8 +15,6 @@ def file_manager(p):
     path_obj = Path(p)
     md_files = list(path_obj.rglob("*.md"))
     py_files = list(path_obj.rglob("*.py"))
-    # res["md_files"]=  len(md_files)
-    # res["py_files"] = len(py_files)
     res["md_data"] = md_files
     res["py_data"] = py_files
     return res
@@ -25,16 +23,13 @@ def file_manager(p):
 def read_file(path):
     try:
         text = path.read_text(encoding="utf-8")
-        # print(type(text))
-        # print(len(text))
-        # print(text[:500])
     except OSError as e:
         raise ValueError(f"an error aquired while opening the file: {e}")
     return text
 
 
 def corpus_mangaer():
-    data = file_manager("data/raw/vllm-0.10.1")
+    data = file_manager("/goinfre/mohhnine/rag/data/raw/vllm-0.10.1")
     files = {}
     for key, value, in data.items():
         result = []
@@ -48,84 +43,64 @@ def corpus_mangaer():
 
 def md_text_spliter(data, size):
     list_chunkholder = []
-    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=50, length_function=len, add_start_index=True, keep_separator=True)
+    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=20, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
-        chunk_obj = ChunkHolder
-        chunk_obj.file_path = data[0]
+        file_path = str(data[0])
         text = doc.page_content
         start_index = doc.metadata["start_index"]
         end_index = start_index + len(text)
         if text != data[1][start_index:end_index]:
             raise ValueError("validtion error")
-        chunk_obj.first_character_index = start_index
-        chunk_obj.last_character_index = end_index
-        chunk_obj.text = text
+        chunk_obj = ChunkHolder(file_path=file_path, first_character_index=start_index, last_character_index=end_index, text=text)
         list_chunkholder.append(chunk_obj)
     return list_chunkholder
-        
+
+
 def py_code_spliter(data, size):
     list_chunkholder = []
-    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=50, length_function=len, add_start_index=True, keep_separator=True)
+    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=10, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
-        chunk_obj = ChunkHolder
-        chunk_obj.file_path = data[0]
+        file_path = str(data[0])
         text = doc.page_content
         start_index = doc.metadata["start_index"]
         end_index = start_index + len(text)
         if text != data[1][start_index:end_index]:
             raise ValueError("validtion error")
-        chunk_obj.first_character_index = start_index
-        chunk_obj.last_character_index = end_index
-        chunk_obj.text = text
+        chunk_obj = ChunkHolder(file_path=file_path, first_character_index=start_index, last_character_index=end_index, text=text)
         list_chunkholder.append(chunk_obj)
     return list_chunkholder
 
 
 def bm25_tester(chunks):
-    corpus = [
-    "Python is a popular programming language for data science",
-    "BM25 is a classic keyword ranking function used by search engines",
-    "-augmented generation uses lexical search like BM25 and dense embeddings",
-    "The weather is quite nice and sunny today"
-    ]
     tokens = bm25s.tokenize(chunks)
+    query = "How can I dynamically load a LoRA adapter while the server is running?"
+    query_token = bm25s.tokenize(query)
     retriver = bm25s.BM25()
     retriver.index(tokens)
-    print(retriver)
-
-# def chunk_manger(data):
-#     for key, value in data.items():
-#         pass
+    result, scores = retriver.retrieve(query_token, k=2)
+    print(result)
 
 
 if __name__ == "__main__":
     data = corpus_mangaer()
     sources = []
-    spliter = RecursiveCharacterTextSplitter(chunk_size = 2000, chunk_overlap=0)
+    # spliter = RecursiveCharacterTextSplitter(chunk_size = 2000, chunk_overlap=0)
     for key, value in data.items():
         for tp in value:
             if key == "md_data":
-                sources.extend(md_text_spliter(tp, 2000))
+                res = md_text_spliter(tp, 100)
+                sources.extend(res)
             elif key == "py_data":
-                sources.extend(py_code_spliter(tp, 2000))
-    # print(len(sources))
-    # print(len(sources[0]))
-    # chunks = []
-    # for source in sources:
-    #     chunks.extend(source.text)
+                sources.extend(py_code_spliter(tp, 100))
     chunks = []
     for s in sources:
-        chunks.extend(s.text)
+        if len(s.text) > 0:
+            chunks.append(s.text)
     bm25_tester(chunks)
-    # print(sources[0])
-    # print(sources[0][0].text[:300]) 
-    # print(sources[0][0].first_character_index)
-    # print(sources[0][0].last_character_index)
-    # print(sources[0][0].file_path)
-
-    
+    print(chunks[5])
+  
     # text = spliter.split_text(data["md_data"][1][1])
     # print(text[0])
     # fire.Fire({"task": task,})
