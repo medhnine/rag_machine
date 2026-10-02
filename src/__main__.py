@@ -28,8 +28,8 @@ def read_file(path):
     return text
 
 
-def corpus_mangaer():
-    data = file_manager("/goinfre/mohhnine/rag/data/raw/vllm-0.10.1")
+def corpus_manager():
+    data = file_manager("/goinfre/mohhnine/rag_push/data/raw")
     files = {}
     for key, value, in data.items():
         result = []
@@ -75,31 +75,39 @@ def py_code_spliter(data, size):
 
 def bm25_tester(chunks):
     tokens = bm25s.tokenize(chunks)
-    query = "How can I dynamically load a LoRA adapter while the server is running?"
+    query = "vLLM is a fast ?"
     query_token = bm25s.tokenize(query)
     retriver = bm25s.BM25()
     retriver.index(tokens)
-    result, scores = retriver.retrieve(query_token, k=2)
-    print(result)
+    result = retriver.retrieve(query_token, k=2)
+    return result
 
-
-if __name__ == "__main__":
-    data = corpus_mangaer()
+def sources_manager(data):
     sources = []
-    # spliter = RecursiveCharacterTextSplitter(chunk_size = 2000, chunk_overlap=0)
     for key, value in data.items():
         for tp in value:
             if key == "md_data":
-                res = md_text_spliter(tp, 100)
+                res = md_text_spliter(tp, 1000)
                 sources.extend(res)
             elif key == "py_data":
-                sources.extend(py_code_spliter(tp, 100))
+                sources.extend(py_code_spliter(tp, 1000))
+    return sources
+
+def content_manager(sources):
     chunks = []
     for s in sources:
         if len(s.text) > 0:
             chunks.append(s.text)
-    bm25_tester(chunks)
-    print(chunks[5])
+    return chunks
+
+if __name__ == "__main__":
+    data = corpus_manager()
+    sources = sources_manager(data)
+    chunks = content_manager(sources)
+    bm25_result = bm25_tester(chunks)
+    print(bm25_result)
+    result, scores = bm25_result
+    print(chunks[result[0][0]])
   
     # text = spliter.split_text(data["md_data"][1][1])
     # print(text[0])
