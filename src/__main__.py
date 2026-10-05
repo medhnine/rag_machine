@@ -3,11 +3,7 @@ from typing import cast
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter, CharacterTextSplitter, PythonCodeTextSplitter
 import fire
 import bm25s
-from src.utils import ChunkHolder
-
-
-def task(task, time):
-    print(f"thats your task: {task}, time to finish is: {time}")
+from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion
 
 
 def file_manager(p):
@@ -29,7 +25,7 @@ def read_file(path):
 
 
 def corpus_manager():
-    data = file_manager("/goinfre/mohhnine/rag_push/data/raw")
+    data = file_manager("data/raw")
     files = {}
     for key, value, in data.items():
         result = []
@@ -73,42 +69,83 @@ def py_code_spliter(data, size):
     return list_chunkholder
 
 
-def bm25_tester(chunks):
+def bm25_tester(sources, max_chunk_size):
+    chunks = content_manager(sources, max_chunk_size)
     tokens = bm25s.tokenize(chunks)
-    query = "vLLM is a fast ?"
-    query_token = bm25s.tokenize(query)
+    mata_data = [chunk.model_dump() for chunk in sources]
+    # query = "vLLM is a fast ?"
+    # query_token = bm25s.tokenize(query)
     retriver = bm25s.BM25()
     retriver.index(tokens)
-    result = retriver.retrieve(query_token, k=2)
-    return result
+    # result = retriver.retrieve(query_token, k=2)
+    retriver.save("data/processed", corpus=mata_data)
+    # return result
 
-def sources_manager(data):
+
+def sources_manager(data, max_size):
     sources = []
     for key, value in data.items():
         for tp in value:
             if key == "md_data":
-                res = md_text_spliter(tp, 1000)
+                res = md_text_spliter(tp, max_size)
                 sources.extend(res)
             elif key == "py_data":
-                sources.extend(py_code_spliter(tp, 1000))
+                sources.extend(py_code_spliter(tp, max_size))
     return sources
 
-def content_manager(sources):
+
+def content_manager(sources, max_chunk_size):
     chunks = []
     for s in sources:
-        if len(s.text) > 0:
-            chunks.append(s.text)
+        if len(s.text) <= 0:
+            raise ValueError("chunk must not be empty")
+        elif not (len(s.text) <= max_chunk_size):
+            raise ValueError("chunk to large")
+        chunks.append(s.text)
     return chunks
 
-if __name__ == "__main__":
+def results_manger(data):
+    results = []
+    for res in data:
+        file = res["file_path"]
+        first = res["first_character_index"]
+        last = res["last_character_index"]
+        results.append(MinimalSource(file_path=file, first_character_index=first, last_character_index=last))
+    return results
+
+def search(query, k=5):
+    if len(query) == 0:
+        raise ValueError("query must not be empty")
+    elif k <= 0:
+        raise ValueError("k must not be <= 0")
+    retriver = bm25s.BM25.load("data/processed", load_corpus=True)
+    corpus = retriver.corpus
+    query_tokens = bm25s.tokenize(query)
+    results, scores = retriver.retrieve(query_tokens, k=k)
+    sources = results_manger(results[0])
+    id = UnansweredQuestion(question=query).question_id
+    return MinimalSearchResults(question_id=id, question=query, retrieved_sources=sources).model_dump_json(indent=2)
+
+
+def index(max_chunk_size=2000):
+    if not (1 <= max_chunk_size <= 2000):
+        raise ValueError("max_size must be between 1 and 2000")
     data = corpus_manager()
-    sources = sources_manager(data)
-    chunks = content_manager(sources)
-    bm25_result = bm25_tester(chunks)
-    print(bm25_result)
-    result, scores = bm25_result
-    print(chunks[result[0][0]])
-  
+    sources = sources_manager(data, max_chunk_size)
+    bm25_result = bm25_tester(sources, max_chunk_size)
+    # print(bm25_result)
+    # result, scores = bm25_result
+
+
+if __name__ == "__main__":
+    max_size = fire.Fire({"index": index, "search": search})
+    # data = corpus_manager()
+    # sources = sources_manager(data)
+    # chunks = content_manager(sources)
+    # bm25_result = bm25_tester(chunks)
+    # print(bm25_result)
+    # result, scores = bm25_result
+    # print(chunks[result[0][0]])
     # text = spliter.split_text(data["md_data"][1][1])
     # print(text[0])
     # fire.Fire({"task": task,})

@@ -1,0 +1,6 @@
+__pycache_-/
+.mypy_cache/
+*.egg-info/
+data/output
+.venv/
+.vscode/
