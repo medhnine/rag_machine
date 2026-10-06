@@ -4,7 +4,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTex
 import fire
 import bm25s
 from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion
-
+import json
 
 def file_manager(p):
     res = {}
@@ -78,7 +78,7 @@ def bm25_tester(sources, max_chunk_size):
     retriver = bm25s.BM25()
     retriver.index(tokens)
     # result = retriver.retrieve(query_token, k=2)
-    retriver.save("data/processed", corpus=mata_data)
+    retriver.save("data/processed/index", corpus=mata_data)
     # return result
 
 
@@ -118,7 +118,7 @@ def search(query, k=5):
         raise ValueError("query must not be empty")
     elif k <= 0:
         raise ValueError("k must not be <= 0")
-    retriver = bm25s.BM25.load("data/processed", load_corpus=True)
+    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
     corpus = retriver.corpus
     query_tokens = bm25s.tokenize(query)
     results, scores = retriver.retrieve(query_tokens, k=k)
@@ -136,9 +136,24 @@ def index(max_chunk_size=2000):
     # print(bm25_result)
     # result, scores = bm25_result
 
+def read_json_file(path):
+    try:
+        with open(path, "r") as f:
+            result = json.load(f)
+            return result
+    except OSError as e:
+        raise ValueError(f"an error {e}")
+
+def search_dataset(dataset_path, k, save_directory):
+    query_data = read_json_file(dataset_path)
+    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
+    for query in query_data.items():
+        print(query[1])
+        print()
+    print(retriver)
 
 if __name__ == "__main__":
-    max_size = fire.Fire({"index": index, "search": search})
+    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset})
     # data = corpus_manager()
     # sources = sources_manager(data)
     # chunks = content_manager(sources)
