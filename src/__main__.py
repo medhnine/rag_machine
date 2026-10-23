@@ -5,6 +5,7 @@ import fire
 import bm25s
 from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion
 import json
+import pprint
 
 def file_manager(p):
     res = {}
@@ -72,13 +73,13 @@ def py_code_spliter(data, size):
 def bm25_tester(sources, max_chunk_size):
     chunks = content_manager(sources, max_chunk_size)
     tokens = bm25s.tokenize(chunks)
-    mata_data = [chunk.model_dump() for chunk in sources]
+    meta_data = [chunk.model_dump() for chunk in sources]
     # query = "vLLM is a fast ?"
     # query_token = bm25s.tokenize(query)
     retriver = bm25s.BM25()
     retriver.index(tokens)
     # result = retriver.retrieve(query_token, k=2)
-    retriver.save("data/processed/index", corpus=mata_data)
+    retriver.save("data/processed/index", corpus=meta_data)
     # return result
 
 
@@ -104,6 +105,7 @@ def content_manager(sources, max_chunk_size):
         chunks.append(s.text)
     return chunks
 
+
 def results_manger(data):
     results = []
     for res in data:
@@ -112,6 +114,7 @@ def results_manger(data):
         last = res["last_character_index"]
         results.append(MinimalSource(file_path=file, first_character_index=first, last_character_index=last))
     return results
+
 
 def search(query, k=5):
     if len(query) == 0:
@@ -133,7 +136,6 @@ def index(max_chunk_size=2000):
     data = corpus_manager()
     sources = sources_manager(data, max_chunk_size)
     bm25_result = bm25_tester(sources, max_chunk_size)
-    # print(bm25_result)
     # result, scores = bm25_result
 
 def read_json_file(path):
@@ -144,13 +146,17 @@ def read_json_file(path):
     except OSError as e:
         raise ValueError(f"an error {e}")
 
+
 def search_dataset(dataset_path, k, save_directory):
     query_data = read_json_file(dataset_path)
+    data = query_data["rag_questions"]
     retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
-    for query in query_data.items():
-        print(query[1])
-        print()
-    print(retriver)
+    for query in data:
+        question_id = query["question_id"]
+        question = query["question"]
+        tokens = bm25s.tokenize(question)
+        sources = retriver.retrieve(tokens, k=k)
+        
 
 if __name__ == "__main__":
     max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset})
