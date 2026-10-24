@@ -3,9 +3,10 @@ from typing import cast
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter, CharacterTextSplitter, PythonCodeTextSplitter
 import fire
 import bm25s
-from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion
+from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults
 import json
 import pprint
+import os
 
 def file_manager(p):
     res = {}
@@ -40,7 +41,7 @@ def corpus_manager():
 
 def md_text_spliter(data, size):
     list_chunkholder = []
-    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=20, length_function=len, add_start_index=True, keep_separator=True)
+    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=500, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
         file_path = str(data[0])
@@ -56,7 +57,7 @@ def md_text_spliter(data, size):
 
 def py_code_spliter(data, size):
     list_chunkholder = []
-    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=10, length_function=len, add_start_index=True, keep_separator=True)
+    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=500, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
         file_path = str(data[0])
@@ -116,6 +117,15 @@ def results_manger(data):
     return results
 
 
+def read_json_file(path):
+    try:
+        with open(path, "r") as f:
+            result = json.load(f)
+            return result
+    except OSError as e:
+        raise ValueError(f"an error {e}")
+
+
 def search(query, k=5):
     if len(query) == 0:
         raise ValueError("query must not be empty")
@@ -130,6 +140,36 @@ def search(query, k=5):
     return MinimalSearchResults(question_id=id, question=query, retrieved_sources=sources).model_dump_json(indent=2)
 
 
+def query_search(query, k, id, retriver):
+    tokens = bm25s.tokenize(query)
+    results, scores = retriver.retrieve(tokens, k=k)
+    sources = results_manger(results[0])
+    return MinimalSearchResults(question_id=id, question=query, retrieved_sources=sources)
+
+def json_save(dataset_path, data, save_directory):
+    output_dir = Path(save_directory)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    file_name = Path(dataset_path).name
+    output_path = output_dir / file_name
+    output_path.write_text(data.model_dump_json(indent=2), encoding="utf-8")
+    path = Path(output_path)
+    valid = data.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def search_dataset(dataset_path, k, save_directory):
+    query_data = read_json_file(dataset_path)
+    data = query_data["rag_questions"]
+    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
+    MinimalSearchResults_data = []
+    for query in data:
+        question_id = query["question_id"]
+        question = query["question"]
+        sources = query_search(question, k, question_id, retriver)
+        MinimalSearchResults_data.append(sources)
+    data = StudentSearchResults(search_results=MinimalSearchResults_data, k=k)
+    json_save(dataset_path ,data, save_directory)
+# /goinfre/mohhnine/rag_git/data/output/search_results/UnansweredQuestions/dataset_docs_public.json
+
 def index(max_chunk_size=2000):
     if not (1 <= max_chunk_size <= 2000):
         raise ValueError("max_size must be between 1 and 2000")
@@ -138,25 +178,6 @@ def index(max_chunk_size=2000):
     bm25_result = bm25_tester(sources, max_chunk_size)
     # result, scores = bm25_result
 
-def read_json_file(path):
-    try:
-        with open(path, "r") as f:
-            result = json.load(f)
-            return result
-    except OSError as e:
-        raise ValueError(f"an error {e}")
-
-
-def search_dataset(dataset_path, k, save_directory):
-    query_data = read_json_file(dataset_path)
-    data = query_data["rag_questions"]
-    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
-    for query in data:
-        question_id = query["question_id"]
-        question = query["question"]
-        tokens = bm25s.tokenize(question)
-        sources = retriver.retrieve(tokens, k=k)
-        
 
 if __name__ == "__main__":
     max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset})
@@ -173,3 +194,5 @@ if __name__ == "__main__":
     # res = file_manager("data/raw/vllm-0.10.1")
     # read_file(res["md_data"][1])
     # print(res.read_text(encoding="utf-8"))
+
+

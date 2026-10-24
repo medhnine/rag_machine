@@ -2,7 +2,7 @@ MAX_CHUNK_SIZE ?=2000
 QUERY ?= vllm uses
 DATASET_PATH ?= data/datasets/UnansweredQuestions/dataset_code_public.json
 K ?= 5
-SAVE_DIRECTORY ?= data/datasets/AnsweredQuestions
+SAVE_DIRECTORY ?= data/output/search_results/UnansweredQuestions
 
 
 index:

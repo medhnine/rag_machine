@@ -1,6 +1,16 @@
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import json
+from pathlib import Path
+from pydantic import ValidationError
+from src.utils import AnsweredQuestion
 
-doc = f'An intuitive strategy is to split documents based on their length. This simple yet effective approach ensures that each chunk doesn’t exceed a specified size limit. Key benefits of length-based splitting:'
-chuncker = RecursiveCharacterTextSplitter(chunk_size = 100, chunk_overlap=20)
+path = Path("data/datasets/AnsweredQuestions/dataset_code_public.json")
 
-print(chuncker.split_text(doc))
+data = json.loads(path.read_text(encoding="utf-8"))
+
+first_question = data["rag_questions"][0]
+
+try:
+    question = AnsweredQuestion.model_validate(first_question)
+    print("Valid AnsweredQuestion")
+except ValidationError as e:
+    print(e)
