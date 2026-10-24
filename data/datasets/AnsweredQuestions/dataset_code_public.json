@@ -7,7 +7,7 @@
       "sources": [
         
         {
-          "filrropath": "data/raw/vllm-0.10.1/vllm/model_executor/layers/fused_moe/fused_batched_moe.py",
+          "file_path": "data/raw/vllm-0.10.1/vllm/model_executor/layers/fused_moe/fused_batched_moe.py",
           "first_character_index": 28416,
           "last_character_index": 28975
         }
