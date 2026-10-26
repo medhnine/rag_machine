@@ -14,6 +14,9 @@ search:
 search_dataset:
 	uv run python3 -m src search_dataset --dataset_path $(DATASET_PATH) --k $(K) --save_directory $(SAVE_DIRECTORY) 
 
+answer:
+	uv run python3 -m src answer --query "$(QUERY)" --k $(K)
+
 install:
 	uv sync
 

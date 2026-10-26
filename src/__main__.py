@@ -8,6 +8,7 @@ import json
 import pprint
 import os
 
+
 def file_manager(p):
     res = {}
     path_obj = Path(p)
@@ -146,6 +147,7 @@ def query_search(query, k, id, retriver):
     sources = results_manger(results[0])
     return MinimalSearchResults(question_id=id, question=query, retrieved_sources=sources)
 
+
 def json_save(dataset_path, data, save_directory):
     output_dir = Path(save_directory)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -154,6 +156,7 @@ def json_save(dataset_path, data, save_directory):
     output_path.write_text(data.model_dump_json(indent=2), encoding="utf-8")
     path = Path(output_path)
     valid = data.model_validate_json(path.read_text(encoding="utf-8"))
+
 
 
 def search_dataset(dataset_path, k, save_directory):
@@ -170,6 +173,32 @@ def search_dataset(dataset_path, k, save_directory):
     json_save(dataset_path ,data, save_directory)
 # /goinfre/mohhnine/rag_git/data/output/search_results/UnansweredQuestions/dataset_docs_public.json
 
+def context_maker(inputs, k, query):
+    if len(inputs) == 0:
+        raise ValueError("inputs data are not enough for context generation")
+    context = "You are an assistant answering questions.\n\n\nUse the provided context to answer the question.\nIf the context does not contain enough information, say so.\nDo not invent information.\n\n"
+    context += "CONTEXT:\n"
+    for i in range(0, k):
+        context += f"\n\n[source {i+1}]\n"
+        context += inputs[i]["text"]
+    context += "\n\n\nQUESTION:\n"
+    context += query
+    context += "\n\nANSWER:"
+    print(context)
+    return context
+
+def answer(query, k):
+    if len(query.strip()) == 0:
+        raise ValueError("query must not be empty")
+    elif k <= 0:
+        raise ValueError("k must not be <= 0")
+    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
+    tokens = bm25s.tokenize(query)
+    results, scores = retriver.retrieve(tokens, k=k)
+    context = context_maker(results[0], k, query)
+
+
+
 def index(max_chunk_size=2000):
     if not (1 <= max_chunk_size <= 2000):
         raise ValueError("max_size must be between 1 and 2000")
@@ -180,7 +209,7 @@ def index(max_chunk_size=2000):
 
 
 if __name__ == "__main__":
-    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset})
+    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset, "answer": answer})
     # data = corpus_manager()
     # sources = sources_manager(data)
     # chunks = content_manager(sources)
@@ -194,5 +223,3 @@ if __name__ == "__main__":
     # res = file_manager("data/raw/vllm-0.10.1")
     # read_file(res["md_data"][1])
     # print(res.read_text(encoding="utf-8"))
-
-
