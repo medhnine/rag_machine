@@ -4,6 +4,8 @@ DATASET_PATH ?= data/datasets/UnansweredQuestions/dataset_code_public.json
 K ?= 5
 SAVE_DIRECTORY ?= data/output/search_results/UnansweredQuestions
 
+all:
+	uv run python3 -m src
 
 index:
 	uv run python3 -m src index --max_chunk_size $(MAX_CHUNK_SIZE)

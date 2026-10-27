@@ -5,9 +5,12 @@ description = "rag"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "accelerate>=1.15.0",
     "bm25>=0.3.11",
     "fire>=0.7.1",
     "langchain-text-splitters>=1.1.2",
     "pydantic>=2.13.5",
     "rank-bm25>=0.2.2",
+    "torch>=2.14.1",
+    "transformers>=4.51.0",
 ]

@@ -3,10 +3,13 @@ from typing import cast
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter, CharacterTextSplitter, PythonCodeTextSplitter
 import fire
 import bm25s
-from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults
+from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults, MinimalAnswer
 import json
 import pprint
 import os
+from transformers import pipeline
+import torch
+from uuid import uuid4
 
 
 def file_manager(p):
@@ -171,7 +174,7 @@ def search_dataset(dataset_path, k, save_directory):
         MinimalSearchResults_data.append(sources)
     data = StudentSearchResults(search_results=MinimalSearchResults_data, k=k)
     json_save(dataset_path ,data, save_directory)
-# /goinfre/mohhnine/rag_git/data/output/search_results/UnansweredQuestions/dataset_docs_public.json
+
 
 def context_maker(inputs, k, query):
     if len(inputs) == 0:
@@ -184,8 +187,44 @@ def context_maker(inputs, k, query):
     context += "\n\n\nQUESTION:\n"
     context += query
     context += "\n\nANSWER:"
-    print(context)
     return context
+
+
+def llm_tester(context):
+    
+    llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
+    model = llm.model
+    model_tokenizer = llm.tokenizer
+
+    messages = [
+        {
+            "role": "user",
+            "content": context + "\n/no_think"
+        } 
+    ]
+    result = llm(
+        messages,
+        max_new_tokens=256,
+        return_full_text=False
+    )
+    return result[0]["generated_text"].strip()
+    # inputs = model_tokenizer.apply_chat_template(
+    #     messages,
+    #     tokenize=True,
+    #     add_generation_promt=True,
+    #     enable_thinking=False,
+    #     return_tensors="pt",
+    #     return_dict=True
+    # ).to(model.device)
+    # pprint.pp(inputs)
+    # exit(0)
+    # ids = model_tokenizer.encode("the capital of spain is madrid and the capital of france is par")
+    # inputs = torch.tensor([ids], device=model.device)
+    # result = model.generate(input_ids=inputs)
+    # print(model_tokenizer.decode(result))
+    # res = model.generate()
+    # print(model_tokenizer.decode(res))
+
 
 def answer(query, k):
     if len(query.strip()) == 0:
@@ -196,7 +235,14 @@ def answer(query, k):
     tokens = bm25s.tokenize(query)
     results, scores = retriver.retrieve(tokens, k=k)
     context = context_maker(results[0], k, query)
-
+    result = llm_tester(context).strip("<think>\n</think>\n")
+    answer_result = MinimalAnswer(
+    question_id=str(uuid4()),
+    question=query,
+    retrieved_sources=results_manger(results[0]),
+    answer=result
+    )
+    return answer_result
 
 
 def index(max_chunk_size=2000):
