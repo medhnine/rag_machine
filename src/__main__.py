@@ -3,7 +3,7 @@ from typing import cast
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter, CharacterTextSplitter, PythonCodeTextSplitter
 import fire
 import bm25s
-from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults, MinimalAnswer
+from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults, MinimalAnswer, StudentSearchResultsAndAnswer
 import json
 import pprint
 import os
@@ -123,7 +123,7 @@ def results_manger(data):
 
 def read_json_file(path):
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             result = json.load(f)
             return result
     except OSError as e:
@@ -190,11 +190,11 @@ def context_maker(inputs, k, query):
     return context
 
 
-def llm_tester(context):
-    
-    llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
-    model = llm.model
-    model_tokenizer = llm.tokenizer
+def llm_tester(context, llm):
+    if llm is None:
+        llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
+    # model = llm.model
+    # model_tokenizer = llm.tokenizer
 
     messages = [
         {
@@ -207,7 +207,7 @@ def llm_tester(context):
         max_new_tokens=256,
         return_full_text=False
     )
-    return result[0]["generated_text"].strip()
+    return result[0]["generated_text"].strip("<think>\n</think>\n")
     # inputs = model_tokenizer.apply_chat_template(
     #     messages,
     #     tokenize=True,
@@ -235,7 +235,7 @@ def answer(query, k):
     tokens = bm25s.tokenize(query)
     results, scores = retriver.retrieve(tokens, k=k)
     context = context_maker(results[0], k, query)
-    result = llm_tester(context).strip("<think>\n</think>\n")
+    result = llm_tester(context, None)
     answer_result = MinimalAnswer(
     question_id=str(uuid4()),
     question=query,
@@ -243,6 +243,64 @@ def answer(query, k):
     answer=result
     )
     return answer_result
+
+def build_context(text, query):
+    if len(text) == 0:
+        raise ValueError("inputs data are not enough for context generation")
+    context = "You are an assistant answering questions.\n\n\nUse the provided context to answer the question.\nIf the context does not contain enough information, say so.\nDo not invent information.\n\n"
+    context += "CONTEXT:\n"
+    for i in range(0, len(text)):
+        context += f"\n\n[source {i+1}]\n"
+        context += text[i]
+    context += "\n\n\nQUESTION:\n"
+    context += query
+    context += "\n\nANSWER:"
+    return context
+
+
+def minimal_source_reader(source):
+    start = source.first_character_index
+    end = source.last_character_index
+    with open(source.file_path, "r") as f:
+        length = end - start
+        text = f.read()
+    if start < 0 or end <= start or end > len(text):
+        raise ValueError(f"Invalid source offsets: {source.file_path}")
+    return text[start:end]
+
+def minimal_search_results_extractor(search_results):
+    list_minimal_answer = []
+    llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
+    for item in search_results:
+        question = item.question
+        print(question)
+        print()
+        question_id = item.question_id
+        retrieved_sources = item.retrieved_sources
+        texts = []
+        for source in retrieved_sources:
+            text = minimal_source_reader(source)
+            texts.append(text)
+        context = build_context(texts, question)
+        answer = llm_tester(context, llm)
+        print(answer)
+        list_minimal_answer.append(MinimalAnswer(
+            question_id=question_id, 
+            question=question, 
+            retrieved_sources=retrieved_sources,
+            answer=answer
+        ))
+    return list_minimal_answer
+        
+
+def answer_dataset(student_search_results_path, save_directory):
+    data = StudentSearchResults.model_validate(read_json_file(student_search_results_path))
+    search_results = data.search_results
+    k = data.k
+    search_results = minimal_search_results_extractor(search_results)
+    final_result = StudentSearchResultsAndAnswer(search_results=search_results, k=k)
+    json_save(student_search_results_path, final_result, save_directory)
+    return final_result
 
 
 def index(max_chunk_size=2000):
@@ -255,7 +313,7 @@ def index(max_chunk_size=2000):
 
 
 if __name__ == "__main__":
-    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset, "answer": answer})
+    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset, "answer": answer, "answer_dataset": answer_dataset})
     # data = corpus_manager()
     # sources = sources_manager(data)
     # chunks = content_manager(sources)
