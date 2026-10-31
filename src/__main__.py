@@ -10,6 +10,7 @@ import os
 from transformers import pipeline
 import torch
 from uuid import uuid4
+from tqdm import tqdm
 
 
 def file_manager(p):
@@ -271,10 +272,8 @@ def minimal_source_reader(source):
 def minimal_search_results_extractor(search_results):
     list_minimal_answer = []
     llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
-    for item in search_results:
+    for item in tqdm(search_results[:2], desc="Generating answers"):
         question = item.question
-        print(question)
-        print()
         question_id = item.question_id
         retrieved_sources = item.retrieved_sources
         texts = []
@@ -283,7 +282,6 @@ def minimal_search_results_extractor(search_results):
             texts.append(text)
         context = build_context(texts, question)
         answer = llm_tester(context, llm)
-        print(answer)
         list_minimal_answer.append(MinimalAnswer(
             question_id=question_id, 
             question=question, 
