@@ -3,7 +3,7 @@ from typing import cast
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter, CharacterTextSplitter, PythonCodeTextSplitter
 import fire
 import bm25s
-from src.utils import ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults, MinimalAnswer, StudentSearchResultsAndAnswer
+from src.utils import RagDataset, AnsweredQuestion, ChunkHolder, MinimalSource, MinimalSearchResults, UnansweredQuestion, StudentSearchResults, MinimalAnswer, StudentSearchResultsAndAnswer
 import json
 import pprint
 import os
@@ -301,6 +301,35 @@ def answer_dataset(student_search_results_path, save_directory):
     return final_result
 
 
+def evaluate(student_search_results_path, dataset_path):
+    dataset = RagDataset.model_validate(
+        read_json_file(dataset_path)
+    )
+
+    student_results = StudentSearchResults.model_validate(
+        read_json_file(student_search_results_path)
+    )
+    
+    
+    extracted_data = {}
+    for item in dataset.rag_questions:
+        if not isinstance(item, AnsweredQuestion):
+            raise ValueError("error in evalute")
+        extracted_data[item.question_id] = item.sources
+    
+    extracted_result = {}
+    for item in student_results.search_results:
+        if not isinstance(item, MinimalSearchResults):
+            raise ValueError("error in evalute")
+        question_id = item.question_id
+        sources = item.get(question_id)
+        if sources is None:
+            raise ValueError(f"Unknown question id {question_id}")
+        extracted_result[question_id] = sources 
+    
+    print(extracted_data)
+    print(extracted_result)
+
 def index(max_chunk_size=2000):
     if not (1 <= max_chunk_size <= 2000):
         raise ValueError("max_size must be between 1 and 2000")
@@ -311,7 +340,7 @@ def index(max_chunk_size=2000):
 
 
 if __name__ == "__main__":
-    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset, "answer": answer, "answer_dataset": answer_dataset})
+    max_size = fire.Fire({"index": index, "search": search, "search_dataset": search_dataset, "answer": answer, "answer_dataset": answer_dataset, "evaluate": evaluate})
     # data = corpus_manager()
     # sources = sources_manager(data)
     # chunks = content_manager(sources)
