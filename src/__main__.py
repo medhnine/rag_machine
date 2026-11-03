@@ -342,24 +342,30 @@ def evaluate(student_search_results_path, dataset_path):
         read_json_file(student_search_results_path)
     )
     
-    
     extracted_data = {}
     for item in dataset.rag_questions:
         if not isinstance(item, AnsweredQuestion):
             raise ValueError("error in evalute")
         extracted_data[item.question_id] = item.sources
     
-    recall = []
+    found = 0
+    matched = []
     for item in student_results.search_results:
         if not isinstance(item, MinimalSearchResults):
             raise ValueError("error in evalute")
         question_id = item.question_id
         sources = extracted_data.get(question_id)
-        print(len(sources))
         if sources is None:
             raise ValueError(f"Unknown question id {question_id}")
         retrieved_sources = item.retrieved_sources
-        # print(len(retrieved_sources))
+        found = 0
+        for retrived in retrieved_sources:
+            for source in sources:
+                if compare_sources(retrived, source) and source not in matched:
+                    matched.append(source)
+                    found += 1
+                    break
+        print(found)
 
 
 def index(max_chunk_size=2000):
