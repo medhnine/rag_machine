@@ -301,6 +301,38 @@ def answer_dataset(student_search_results_path, save_directory):
     return final_result
 
 
+def compare_sources(retrived, correct):
+    if retrived.file_path != correct.file_path:
+        return False
+    r_start = retrived.first_character_index
+    r_end = retrived.last_character_index
+    c_start = correct.first_character_index
+    c_end = correct.last_character_index
+
+    if r_start >= r_end or c_start >= c_end:
+        return False
+
+    area_0f_intersection = min(c_end, r_end) - max(c_start, r_start)
+    if area_0f_intersection <= 0:
+        return False
+    
+    area_correct = c_end - c_start
+    area_retrived = r_end - r_start
+    
+    area_of_union = area_correct + area_retrived - area_0f_intersection
+
+
+    intersection_over_union = area_0f_intersection / area_of_union
+
+    if intersection_over_union < 0.05:
+        return False
+
+    return True
+    
+
+    
+
+
 def evaluate(student_search_results_path, dataset_path):
     dataset = RagDataset.model_validate(
         read_json_file(dataset_path)
@@ -317,18 +349,18 @@ def evaluate(student_search_results_path, dataset_path):
             raise ValueError("error in evalute")
         extracted_data[item.question_id] = item.sources
     
-    extracted_result = {}
+    recall = []
     for item in student_results.search_results:
         if not isinstance(item, MinimalSearchResults):
             raise ValueError("error in evalute")
         question_id = item.question_id
-        sources = item.get(question_id)
+        sources = extracted_data.get(question_id)
+        print(len(sources))
         if sources is None:
             raise ValueError(f"Unknown question id {question_id}")
-        extracted_result[question_id] = sources 
-    
-    print(extracted_data)
-    print(extracted_result)
+        retrieved_sources = item.retrieved_sources
+        # print(len(retrieved_sources))
+
 
 def index(max_chunk_size=2000):
     if not (1 <= max_chunk_size <= 2000):
