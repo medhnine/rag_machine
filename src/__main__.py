@@ -289,7 +289,7 @@ def minimal_search_results_extractor(search_results):
             answer=answer
         ))
     return list_minimal_answer
-        
+
 
 def answer_dataset(student_search_results_path, save_directory):
     data = StudentSearchResults.model_validate(read_json_file(student_search_results_path))
@@ -328,10 +328,18 @@ def compare_sources(retrived, correct):
         return False
 
     return True
-    
 
-    
-
+def calculate_recall(correct_sources, retrieved_sources, k):
+    found = 0
+    if len(correct_sources) == 0:
+        raise ValueError("empty correct_sources")
+    for source in correct_sources:
+        for retrieved in retrieved_sources[:k]:
+            if compare_sources(retrieved, source):
+                found += 1
+                break
+    print(f"recall: {found}/{len(correct_sources)} = {(found / len(correct_sources)) * 100}")
+    return found / len(correct_sources)
 
 def evaluate(student_search_results_path, dataset_path):
     dataset = RagDataset.model_validate(
@@ -341,15 +349,17 @@ def evaluate(student_search_results_path, dataset_path):
     student_results = StudentSearchResults.model_validate(
         read_json_file(student_search_results_path)
     )
-    
+    total_questions = len(student_results.search_results)
+    if total_questions == 0:
+        raise ValueError("No questions to evaluate")
+    k = student_results.k
     extracted_data = {}
+    result = 0
     for item in dataset.rag_questions:
         if not isinstance(item, AnsweredQuestion):
             raise ValueError("error in evalute")
         extracted_data[item.question_id] = item.sources
-    
-    found = 0
-    matched = []
+
     for item in student_results.search_results:
         if not isinstance(item, MinimalSearchResults):
             raise ValueError("error in evalute")
@@ -358,15 +368,8 @@ def evaluate(student_search_results_path, dataset_path):
         if sources is None:
             raise ValueError(f"Unknown question id {question_id}")
         retrieved_sources = item.retrieved_sources
-        found = 0
-        for retrived in retrieved_sources:
-            for source in sources:
-                if compare_sources(retrived, source) and source not in matched:
-                    matched.append(source)
-                    found += 1
-                    break
-        print(found)
-
+        result += calculate_recall(sources, retrieved_sources, k)
+    print(f"recall@{k}: {((result / total_questions) * 100):1f}%")
 
 def index(max_chunk_size=2000):
     if not (1 <= max_chunk_size <= 2000):

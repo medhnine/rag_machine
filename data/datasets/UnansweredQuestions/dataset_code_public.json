@@ -394,7 +394,7 @@
     },
     {
       "question_id": "cc784ab6-ef8a-402d-b874-4160ec7c87f1",
-      "question": "What determines whether custom allreduce is enabled in vLLM's CudaCommunicator?"
+      "question": "What determines wzhether custom allreduce is enabled in vLLM's CudaCommunicator?"
     }
   ]
 }
