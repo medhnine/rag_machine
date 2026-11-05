@@ -1,16 +1,15 @@
 import json
 from pathlib import Path
-from pydantic import ValidationError
-from src.utils import AnsweredQuestion
 
-path = Path("data/datasets/AnsweredQuestions/dataset_code_public.json")
+source = Path(
+    "data/output/search_results/UnansweredQuestions/dataset_docs_public.json"
+)
 
-data = json.loads(path.read_text(encoding="utf-8"))
+target = Path("data/tests/search_results_docs_2.json")
 
-first_question = data["rag_questions"][0]
+data = json.loads(source.read_text(encoding="utf-8"))
 
-try:
-    question = AnsweredQuestion.model_validate(first_question)
-    print("Valid AnsweredQuestion")
-except ValidationError as e:
-    print(e)
+data["search_results"] = data["search_results"][:2]
+
+target.parent.mkdir(parents=True, exist_ok=True)
+target.write_text(json.dumps(data, indent=2), encoding="utf-8")

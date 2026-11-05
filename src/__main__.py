@@ -46,7 +46,8 @@ def corpus_manager():
 
 def md_text_spliter(data, size):
     list_chunkholder = []
-    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=500, length_function=len, add_start_index=True, keep_separator=True)
+    overlap = size / 4
+    chunk_result = MarkdownTextSplitter(chunk_size = size, chunk_overlap=overlap, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
         file_path = str(data[0])
@@ -62,7 +63,8 @@ def md_text_spliter(data, size):
 
 def py_code_spliter(data, size):
     list_chunkholder = []
-    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=500, length_function=len, add_start_index=True, keep_separator=True)
+    overlap = size / 4
+    chunk_result = PythonCodeTextSplitter(chunk_size = size, chunk_overlap=overlap, length_function=len, add_start_index=True, keep_separator=True)
     document = chunk_result.create_documents([data[1]])
     for doc in document:
         file_path = str(data[0])
@@ -208,7 +210,7 @@ def llm_tester(context, llm):
         max_new_tokens=256,
         return_full_text=False
     )
-    return result[0]["generated_text"].strip("<think>\n</think>\n")
+    return result[0]["generated_text"].strip()
     # inputs = model_tokenizer.apply_chat_template(
     #     messages,
     #     tokenize=True,
@@ -237,13 +239,15 @@ def answer(query, k):
     results, scores = retriver.retrieve(tokens, k=k)
     context = context_maker(results[0], k, query)
     result = llm_tester(context, None)
+    if result.startswith("<think>\n\n</think>\n\n"):
+        result = result.split("<think>\n\n</think>\n\n", 1)[1].strip()
     answer_result = MinimalAnswer(
     question_id=str(uuid4()),
     question=query,
     retrieved_sources=results_manger(results[0]),
     answer=result
     )
-    return answer_result
+    return answer_result.model_dump_json(indent=2)
 
 def build_context(text, query):
     if len(text) == 0:
@@ -272,7 +276,7 @@ def minimal_source_reader(source):
 def minimal_search_results_extractor(search_results):
     list_minimal_answer = []
     llm = pipeline("text-generation", model="Qwen/Qwen3-0.6B", device_map="auto")
-    for item in tqdm(search_results[:2], desc="Generating answers"):
+    for item in tqdm(search_results, desc="Generating answers"):
         question = item.question
         question_id = item.question_id
         retrieved_sources = item.retrieved_sources
