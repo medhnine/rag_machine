@@ -8,9 +8,14 @@ SAVE_DIRECTORY ?= data/output/search_results/UnansweredQuestions
 STUDENT_SEARCH_RESULTS_PATH ?= data/output/search_results/UnansweredQuestions/dataset_docs_public.json
 SAVE ?= data/output/search_results_and_answer/UnansweredQuestions
 
+install:
+	uv sync
 
-all:
-	uv run python3 -m src
+run:
+	uv run python -m src
+
+debug:
+	uv run python -m pdb -m src
 
 index:
 	uv run python3 -m src index --max_chunk_size $(MAX_CHUNK_SIZE)
@@ -31,8 +36,9 @@ evaluate:
 	uv run python3 -m src evaluate --student_search_results_path $(STUDENT_SEARCH_RESULTS_PATH) --dataset_path $(SECOND_DATASET)
 
 
-install:
-	uv sync
+lint:
+	uv run flake8 src/
+	uv run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
