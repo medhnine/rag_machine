@@ -37,7 +37,7 @@ evaluate:
 
 
 lint:
-	uv run flake8 src/
+	uv run flake8 .
 	uv run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 clean:

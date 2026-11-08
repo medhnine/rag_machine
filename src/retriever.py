@@ -5,6 +5,7 @@ import bm25s
 
 from src.utils import read_json_file, json_save
 from src.models import (
+    RagDataset,
     MinimalSource,
     MinimalSearchResults,
     StudentSearchResults,
@@ -52,6 +53,11 @@ def query_search(
     Returns:
         Retrieved minimal source locations for this question.
     """
+    if not isinstance(query, str) or len(query.strip()) == 0:
+        raise ValueError("query must be valid str and not be empty")
+    elif not isinstance(k, int) or isinstance(k, bool) or k <= 0:
+        raise ValueError("k must not be <= 0")
+    retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
     tokens = bm25s.tokenize(query)
     results, scores = retriver.retrieve(tokens, k=k)
     sources = results_manger(results[0])
@@ -75,9 +81,9 @@ def search(query: str, k: int = 5) -> str:
     Raises:
         ValueError: If the query is empty or k is nonpositive.
     """
-    if len(query) == 0:
-        raise ValueError("query must not be empty")
-    elif k <= 0:
+    if not isinstance(query, str) or len(query.strip()) == 0:
+        raise ValueError("query must be valid str and not be empty")
+    elif not isinstance(k, int) or isinstance(k, bool) or k <= 0:
         raise ValueError("k must not be <= 0")
     retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
     query_tokens = bm25s.tokenize(query)
@@ -101,13 +107,17 @@ def search_dataset(
         k: Number of retrieved sources per question.
         save_directory: Output folder for StudentSearchResults.
     """
-    query_data = read_json_file(dataset_path)
-    data = query_data["rag_questions"]
+    if not isinstance(k, int) or isinstance(k, bool) or k <= 0:
+        raise ValueError("k must not be <= 0")
+    query_data = RagDataset.model_validate(
+        read_json_file(dataset_path)
+    )
+    data = query_data.rag_questions
     retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
     MinimalSearchResults_data = []
     for query in data:
-        question_id = query["question_id"]
-        question = query["question"]
+        question_id = query.question_id
+        question = query.question
         sources = query_search(question, k, question_id, retriver)
         MinimalSearchResults_data.append(sources)
     data = StudentSearchResults(

@@ -1,6 +1,16 @@
-__pycache_-/
-.mypy_cache/
-*.egg-info/
-data/output
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Python environments
 .venv/
+*.egg-info/
+
+# Development tools
+.mypy_cache/
+.pytest_cache/
+.flake8_cache/
 .vscode/
+
+# Generated outputs
+data/output/

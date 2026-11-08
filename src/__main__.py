@@ -1,4 +1,5 @@
 import fire
+import sys
 
 from src.evaluator import evaluate
 from src.indexer import index
@@ -7,13 +8,17 @@ from src.generator import answer, answer_dataset
 
 
 if __name__ == "__main__":
-    fire.Fire(
-        {
-            "index": index,
-            "search": search,
-            "search_dataset": search_dataset,
-            "answer": answer,
-            "answer_dataset": answer_dataset,
-            "evaluate": evaluate,
-        }
-    )
+    try:
+        fire.Fire(
+            {
+                "index": index,
+                "search": search,
+                "search_dataset": search_dataset,
+                "answer": answer,
+                "answer_dataset": answer_dataset,
+                "evaluate": evaluate,
+            }
+        )
+    except (ValueError, OSError, Exception) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise SystemExit(2) from None

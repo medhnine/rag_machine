@@ -32,6 +32,10 @@ def context_maker(
     Returns:
         Instructions, ranked context, and question as one string.
     """
+    if not isinstance(query, str) or len(query.strip()) == 0:
+        raise ValueError("query must be valid str and not be empty")
+    elif not isinstance(k, int) or isinstance(k, bool) or k <= 0:
+        raise ValueError("k must not be <= 0")
     if len(inputs) == 0:
         raise ValueError("inputs data are not enough for context generation")
     context = (
@@ -60,7 +64,9 @@ def build_context(text: Sequence[str], query: str) -> str:
     Returns:
         Instruction and context prompt for generation.
     """
-    if len(text) == 0:
+    if not isinstance(query, str) or len(query.strip()) == 0:
+        raise ValueError("query must be valid str and not be empty")
+    if len(text.strip()) == 0:
         raise ValueError("inputs data are not enough for context generation")
     context = (
         "You are an assistant answering questions.\n\n\n"
@@ -124,8 +130,11 @@ def minimal_source_reader(source: MinimalSource) -> str:
     """
     start = source.first_character_index
     end = source.last_character_index
-    with open(source.file_path, "r") as f:
-        text = f.read()
+    try:
+        with open(source.file_path, "r") as f:
+            text = f.read()
+    except OSError as e:
+        raise ValueError(f"an error aquired while opening the file: {e}")
     if start < 0 or end <= start or end > len(text):
         raise ValueError(f"Invalid source offsets: {source.file_path}")
     return text[start:end]
@@ -181,9 +190,9 @@ def answer(query: str, k: int) -> str:
     Returns:
         JSON-serialized MinimalAnswer with source metadata.
     """
-    if len(query.strip()) == 0:
-        raise ValueError("query must not be empty")
-    elif k <= 0:
+    if not isinstance(query, str) or len(query.strip()) == 0:
+        raise ValueError("query must be str and not empty")
+    elif not isinstance(k, int) or isinstance(k, bool) or k <= 0:
         raise ValueError("k must not be <= 0")
     retriver = bm25s.BM25.load("data/processed/index", load_corpus=True)
     tokens = bm25s.tokenize(query)

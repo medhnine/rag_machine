@@ -23,7 +23,9 @@ def read_json_file(path: str | Path) -> dict[str, Any]:
             result: dict[str, Any] = json.load(f)
             return result
     except OSError as e:
-        raise ValueError(f"an error {e}")
+        raise ValueError(f"Cannot read file {path}: {e}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in {path}: {e}") from e
 
 
 def json_save(
