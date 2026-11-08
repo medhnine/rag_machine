@@ -66,7 +66,7 @@ def build_context(text: Sequence[str], query: str) -> str:
     """
     if not isinstance(query, str) or len(query.strip()) == 0:
         raise ValueError("query must be valid str and not be empty")
-    if len(text.strip()) == 0:
+    if len(text) == 0:
         raise ValueError("inputs data are not enough for context generation")
     context = (
         "You are an assistant answering questions.\n\n\n"
