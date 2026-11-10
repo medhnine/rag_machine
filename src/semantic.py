@@ -5,6 +5,20 @@ from pathlib import Path
 import numpy as np
 import bm25s
 
+class SemanticRetriever:
+    def __init__(self):
+        self.retriever = bm25s.BM25.load(
+            "data/processed/index",
+            load_corpus=True
+        )
+        self.corpus = self.retriever.corpus
+        self.embeddings = np.load("data/processed/semantic/embeddings.npy")
+        self.model = SentenceTransformer(
+            "sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu"
+        )
+
+
 def semantic_encode(data, model):
     embeddings =  model.encode(
         data,
