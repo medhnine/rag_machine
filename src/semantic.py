@@ -11,12 +11,36 @@ class SemanticRetriever:
             "data/processed/index",
             load_corpus=True
         )
+
         self.corpus = self.retriever.corpus
+
         self.embeddings = np.load("data/processed/semantic/embeddings.npy")
+
         self.model = SentenceTransformer(
             "sentence-transformers/all-MiniLM-L6-v2",
             device="cpu"
         )
+
+        if self.embeddings.shape[0] != len(self.corpus):
+            raise ValueError("incomplete embedding index")
+
+    def semantic_search(self, query, k):
+        if not isinstance(query, str) or not len(query.strip()):
+            raise ValueError("error query must be str and not empty")
+        elif not isinstance(k, int) or k <= 0:
+            raise ValueError("error k must be int and > 0")
+        query_ids = semantic_encode(query, self.model)
+        scores = self.embeddings @ query_ids
+        k_indices = np.argsort(scores)[::-1][:k]
+        top_chunks = []
+        for index in k_indices:
+            top_chunks.append(self.corpus[int(index)])
+        result = results_manger(top_chunks)
+        print(result[0].file_path)
+        print(result[0].first_character_index)
+        print(result[0].last_character_index)
+        print(len(result))
+        return result
 
 
 def semantic_encode(data, model):
